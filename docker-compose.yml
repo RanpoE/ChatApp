@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: chatapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chatapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chatapp"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    image: node:20-alpine
+    container_name: chatapp-backend
+    user: root
+    working_dir: /app/backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PORT=3001
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/chatapp
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - JWT_SECRET=trilliongame
+    volumes:
+      - ./backend:/app/backend
+      - backend-node-modules:/app/backend/node_modules
+    command: >
+      sh -c "
+        apk add --no-cache postgresql-client openssl python3 make g++ &&
+        until pg_isready -h db -U postgres -d chatapp; do
+          echo 'waiting for db...'; sleep 1;
+        done &&
+        npm install &&
+        npx prisma generate &&
+        if find prisma/migrations -type f -name migration.sql -print -quit | grep -q .; then 
+          echo 'Applying Prisma migrations...';
+          npx prisma migrate deploy; 
+        else 
+          echo 'No migrations found; pushing schema to DB...';
+          npx prisma db push; 
+        fi &&
+        npm run dev
+      "
+    ports:
+      - "3001:3001"
+
+  frontend:
+    image: node:20-alpine
+    container_name: chatapp-frontend
+    working_dir: /app/frontend
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - WATCHPACK_POLLING=true
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+  backend-node-modules:
+  frontend-node-modules:
