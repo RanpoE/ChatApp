@@ -12,7 +12,6 @@ import Link from 'next/link';
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const ready = true;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

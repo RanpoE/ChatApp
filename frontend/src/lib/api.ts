@@ -36,8 +36,10 @@ async function doRefresh(rt: string, timeoutMs = 8000) {
     } finally {
       clearTimeout(id);
     }
-  } catch (e: any) {
-    const msg = e?.name === 'AbortError' ? 'Request timed out' : (e?.message || 'Network error');
+  } catch (e) {
+    const msg = e instanceof DOMException && e.name === 'AbortError'
+      ? 'Request timed out'
+      : (e instanceof Error ? e.message : 'Network error');
     return { error: msg };
   }
 }
@@ -46,7 +48,7 @@ export async function api<T>(path: string, init: RequestInit = {}, timeoutMs = 8
   try {
     const headers: HeadersInit = { 'Content-Type': 'application/json', ...(init.headers || {}) };
     const token = getToken();
-    if (token) (headers as any)['Authorization'] = `Bearer ${token}`;
+    if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), timeoutMs);
     let res: Response;
@@ -66,7 +68,7 @@ export async function api<T>(path: string, init: RequestInit = {}, timeoutMs = 8
           if (refreshed.data?.token && refreshed.data?.refreshToken) {
             setTokens(refreshed.data.token, refreshed.data.refreshToken);
             const retryHeaders: HeadersInit = { 'Content-Type': 'application/json', ...(init.headers || {}) };
-            (retryHeaders as any)['Authorization'] = `Bearer ${refreshed.data.token}`;
+            (retryHeaders as Record<string, string>)['Authorization'] = `Bearer ${refreshed.data.token}`;
             const retryCtrl = new AbortController();
             const retryId = setTimeout(() => retryCtrl.abort(), timeoutMs);
             try {
@@ -86,8 +88,10 @@ export async function api<T>(path: string, init: RequestInit = {}, timeoutMs = 8
       return { error: (body?.error as string) || res.statusText };
     }
     return { data: body } as ApiResult<T>;
-  } catch (e: any) {
-    const msg = e?.name === 'AbortError' ? 'Request timed out' : (e?.message || 'Network error');
+  } catch (e) {
+    const msg = e instanceof DOMException && e.name === 'AbortError'
+      ? 'Request timed out'
+      : (e instanceof Error ? e.message : 'Network error');
     return { error: msg };
   }
 }

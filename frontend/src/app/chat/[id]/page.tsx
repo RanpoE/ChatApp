@@ -11,8 +11,8 @@ import { useBackendStatus } from '@/lib/status';
 type LocalMessage = Message & { _status?: 'sent' | 'delivered' | 'error' };
 
 export default function ChatView() {
-  const params = useParams();
-  const rawId = (params as any)?.id as string | string[] | undefined;
+  const params = useParams<{ id: string | string[] }>();
+  const rawId = params?.id;
   const id = Number(Array.isArray(rawId) ? rawId[0] : rawId);
   const dispatch = useAppDispatch();
   const messages = useAppSelector(s => (Number.isFinite(id) ? s.chat.messagesByConv[id] : undefined)) || null;
@@ -83,8 +83,8 @@ export default function ChatView() {
     setSending(false);
     dispatch(setTypingAction({ id, typing: false }));
     if (r.data) {
-      dispatch(replaceMessage({ id, tempId, real: { ...r.data.user, _status: 'delivered' } as any }));
-      dispatch(addMessage({ id, message: r.data.assistant as any }));
+      dispatch(replaceMessage({ id, tempId, real: { ...r.data.user, _status: 'delivered' } as LocalMessage }));
+      dispatch(addMessage({ id, message: r.data.assistant as LocalMessage }));
       setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }), 50);
     } else {
       dispatch(markError({ id, tempId }));
@@ -149,7 +149,7 @@ export default function ChatView() {
       </header>
       <div ref={listRef} className="overflow-auto p-3 sm:p-4 space-y-3 bg-muted/30">
         {visibleMessages?.map(m => (
-          <div key={m.id} ref={el => (msgRefs.current[m.id] = el)} className={`max-w-[85%] md:max-w-2xl lg:max-w-3xl ${m.role==='user' ? 'ml-auto' : ''}`}>
+          <div key={m.id} ref={(el) => { msgRefs.current[m.id] = el; }} className={`max-w-[85%] md:max-w-2xl lg:max-w-3xl ${m.role==='user' ? 'ml-auto' : ''}`}>
             <div className={`px-3 py-2 rounded-2xl ${m.role==='user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-card border rounded-bl-sm'}`}>
               <div className="whitespace-pre-wrap break-words leading-relaxed">{highlight(m.content, query)}</div>
             </div>
@@ -161,7 +161,7 @@ export default function ChatView() {
           </div>
         ))}
         {query.trim() && visibleMessages?.length === 0 && (
-          <div className="text-sm text-muted-foreground">No messages match "{query}"</div>
+          <div className="text-sm text-muted-foreground">No messages match &quot;{query}&quot;</div>
         )}
         {typing && (
           <div className="max-w-3xl">
