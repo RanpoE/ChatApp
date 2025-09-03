@@ -13,7 +13,13 @@ const port = process.env.PORT ? Number(process.env.PORT) : 3001;
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000' }));
+const corsOrigin = process.env.CORS_ORIGIN;
+let allowedOrigin: any = true;
+if (corsOrigin && corsOrigin.trim().length > 0) {
+  const list = corsOrigin.split(',').map(s => s.trim()).filter(Boolean);
+  allowedOrigin = list.length > 1 ? list : list[0] || true;
+}
+app.use(cors({ origin: allowedOrigin }));
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
