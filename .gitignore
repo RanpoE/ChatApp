@@ -1,0 +1,33 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+*.log.*
+.eslintcache
+.cache/
+
+# Node.js
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Next.js / build outputs
+.next/
+frontend/.next/
+out/
+frontend/out/
+dist/
+build/
+coverage/
+.turbo/
+.vercel/
+
+# Environment files
+.env
+.env.*
+!backend/.env.example
+!frontend/.env.example
+
+# Editors/IDE
+.idea/
+.vscode/
