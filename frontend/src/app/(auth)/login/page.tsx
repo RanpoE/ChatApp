@@ -1,31 +1,31 @@
 "use client";
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AuthAPI } from '@/lib/api';
-import { useAppDispatch } from '@/store/hooks';
-import { loginSuccess } from '@/store/authSlice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useBackendStatus } from '@/lib/status';
+import { useLogin } from '@/hooks/queries';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const login = useLogin();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|undefined>();
   const { online, checking } = useBackendStatus();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(undefined);
-    const { data, error } = await AuthAPI.login(username, password);
-    setLoading(false);
-    if (error || !data) return setError(error || 'Login failed');
-    dispatch(loginSuccess(data));
-    router.push('/chat');
+    setError(undefined);
+    login.mutate(
+      { username, password },
+      {
+        onSuccess: () => router.push('/chat'),
+        onError: (err: unknown) =>
+          setError(err instanceof Error ? err.message : 'Login failed'),
+      }
+    );
   };
 
   // Always client-rendered
@@ -48,7 +48,7 @@ export default function LoginPage() {
           <Input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required minLength={8} />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" className="w-full" loading={loading} disabled={!online}>Sign in</Button>
+        <Button type="submit" className="w-full" loading={login.isPending} disabled={!online}>Sign in</Button>
         <p className="text-sm text-muted-foreground">No account? <Link className="underline" href="/register">Register</Link></p>
       </form>
     </main>

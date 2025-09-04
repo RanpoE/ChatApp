@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.0.0",
     "@reduxjs/toolkit": "^2.2.7",
     "@radix-ui/react-slot": "^1.1.2",
     "class-variance-authority": "^0.7.0",

@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ConversationsAPI, type Message } from '@/lib/api';
+import type { Message } from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setMessages as setMessagesAction, addMessage, replaceMessage, setTyping as setTypingAction, markError } from '@/store/chatSlice';
 import { useBackendStatus } from '@/lib/status';
+import { useConversation, useSendMessage, useRenameConversation } from '@/hooks/queries';
 
 type LocalMessage = Message & { _status?: 'sent' | 'delivered' | 'error' };
 
@@ -26,20 +27,21 @@ export default function ChatView() {
   const msgRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const { online } = useBackendStatus();
 
+  const convQuery = useConversation(Number.isFinite(id) ? id : undefined);
   useEffect(() => {
     if (!Number.isFinite(id)) return;
-    ConversationsAPI.get(id).then(r => {
-      if (r.data) {
-        const m = (r.data.messages || []).slice().reverse(); // backend returns desc; show asc
-        dispatch(setMessagesAction({ id, messages: m as LocalMessage[] }));
-        setTitle(r.data.title);
-        setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 0);
-      }
-    });
+    const conv = convQuery.data;
+    if (conv) {
+      const m = (conv.messages || []).slice().reverse(); // backend returns desc; show asc
+      dispatch(setMessagesAction({ id, messages: m as LocalMessage[] }));
+      setTitle(conv.title);
+      setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }), 0);
+    }
     // focus input when conversation changes
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [id, dispatch]);
+  }, [id, convQuery.data, dispatch]);
 
+  const send = useSendMessage(id);
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sending) return;
@@ -76,15 +78,16 @@ export default function ChatView() {
     setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }), 0);
 
     const started = Date.now();
-    const r = await ConversationsAPI.send(id, userContent);
+    const r = await send.mutateAsync(userContent);
     const elapsed = Date.now() - started;
     const wait = Math.max(0, 2000 - elapsed);
     if (wait > 0) await new Promise(res => setTimeout(res, wait));
     setSending(false);
     dispatch(setTypingAction({ id, typing: false }));
     if (r.data) {
-      dispatch(replaceMessage({ id, tempId, real: { ...r.data.user, _status: 'delivered' } as LocalMessage }));
-      dispatch(addMessage({ id, message: r.data.assistant as LocalMessage }));
+      const data = r.data;
+      dispatch(replaceMessage({ id, tempId, real: { ...data.user, _status: 'delivered' } as LocalMessage }));
+      dispatch(addMessage({ id, message: data.assistant as LocalMessage }));
       setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }), 50);
     } else {
       dispatch(markError({ id, tempId }));
@@ -93,11 +96,17 @@ export default function ChatView() {
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
+  const rename = useRenameConversation();
   const onRename = async () => {
     const newTitle = prompt('Rename conversation', title);
     if (!newTitle) return;
-    const r = await ConversationsAPI.rename(id, newTitle);
-    if (r.data) setTitle(r.data.title);
+    try {
+      const res = await rename.mutateAsync({ id, title: newTitle });
+      if (res.data?.title) setTitle(res.data.title);
+      else setTitle(newTitle);
+    } catch {
+      // noop; keep old title
+    }
   };
 
   // Memo: only messages matching the query (or all if no query)
