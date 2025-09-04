@@ -100,10 +100,8 @@ export function useSendMessage(conversationId: number) {
   return useMutation({
     mutationFn: (content: string) => ConversationsAPI.send(conversationId, content),
     onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.conversations }),
-        qc.invalidateQueries({ queryKey: qk.conversation(conversationId) }),
-      ]);
+      // Update list ordering/updated_at, keep conversation detail under local control
+      await qc.invalidateQueries({ queryKey: qk.conversations });
     },
   });
 }
