@@ -17,11 +17,9 @@ Replace these with your deployment URLs. Frontend consumes the API via `NEXT_PUB
 Clone the repository:
 
 ```
-git clone <YOUR_REPO_URL>
+git clone https://github.com/your-org/chatapp.
 cd ChatApp
 ```
-
-Replace `<YOUR_REPO_URL>` with your repo (for example: `https://github.com/your-org/chatapp.git`).
 
 ## Quick Start (with Docker Compose)
 
